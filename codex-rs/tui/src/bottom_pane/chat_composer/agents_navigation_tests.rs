@@ -15,6 +15,7 @@ fn parent_owned_thread_allows_bare_navigation_commands() {
         ("/diff ", SlashCommand::Diff),
         ("/daemon", SlashCommand::Daemon),
         ("/warnings", SlashCommand::Warnings),
+        ("/quota-warning", SlashCommand::QuotaWarning),
     ] {
         let (mut composer, _rx) = new_test_composer();
         composer.set_parent_owned_thread();
@@ -23,6 +24,23 @@ fn parent_owned_thread_allows_bare_navigation_commands() {
         assert_eq!(
             composer.handle_submission(/*should_queue*/ false).0,
             InputResult::Command(expected)
+        );
+    }
+}
+
+#[test]
+fn quota_warning_inline_arguments_are_allowed_in_parent_owned_threads() {
+    for argument in ["on", "off", "status", "toggle"] {
+        let (mut composer, _rx) = new_test_composer();
+        composer.set_parent_owned_thread();
+        composer.set_text_content(format!("/quota-warning {argument}"), Vec::new(), Vec::new());
+        assert_eq!(
+            composer.handle_submission(/*should_queue*/ false).0,
+            InputResult::CommandWithArgs(
+                SlashCommand::QuotaWarning,
+                argument.to_string(),
+                Vec::new()
+            )
         );
     }
 }

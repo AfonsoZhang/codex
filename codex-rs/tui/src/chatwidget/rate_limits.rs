@@ -388,7 +388,7 @@ impl ChatWidget {
                     .insert(limit_id, display);
             }
 
-            if !warnings.is_empty() {
+            if self.quota_warnings_enabled() && !warnings.is_empty() {
                 for warning in warnings {
                     self.add_to_history(history_cell::new_usage_warning_event(warning));
                 }
@@ -429,10 +429,26 @@ impl ChatWidget {
     }
 
     fn rate_limit_switch_prompt_hidden(&self) -> bool {
-        self.local_settings
-            .notices
-            .hide_rate_limit_model_nudge
-            .unwrap_or(false)
+        !self.quota_warnings_enabled()
+            || self
+                .local_settings
+                .notices
+                .hide_rate_limit_model_nudge
+                .unwrap_or(false)
+    }
+
+    pub(crate) fn quota_warnings_enabled(&self) -> bool {
+        self.local_settings.show_quota_warnings
+    }
+
+    pub(crate) fn set_quota_warnings_enabled(&mut self, enabled: bool) {
+        self.local_settings.show_quota_warnings = enabled;
+        if !enabled {
+            self.rate_limit_switch_prompt = RateLimitSwitchPromptState::Idle;
+            self.bottom_pane
+                .dismiss_view_by_id(RATE_LIMIT_SWITCH_PROMPT_VIEW_ID);
+        }
+        self.request_redraw();
     }
 
     pub(super) fn maybe_show_pending_rate_limit_prompt(&mut self) {

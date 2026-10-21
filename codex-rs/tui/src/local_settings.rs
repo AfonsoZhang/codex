@@ -28,6 +28,7 @@ pub(crate) struct LocalSettings {
     pub(crate) transcript_mode: TranscriptMode,
     pub(crate) history: History,
     pub(crate) notices: Notice,
+    pub(crate) show_quota_warnings: bool,
     pub(crate) custom_notification_filters: bool,
     pub(crate) codex_home: AbsolutePathBuf,
     pub(crate) user_config_path: AbsolutePathBuf,
@@ -93,6 +94,7 @@ impl LocalSettings {
             },
             history: config.history.clone(),
             notices: config.notices.clone(),
+            show_quota_warnings: crate::quota_warnings::enabled(config.codex_home.as_path()),
             custom_notification_filters: custom_notification_filters(&config.config_layer_stack),
             codex_home: config.codex_home.clone(),
             user_config_path: config
@@ -135,6 +137,7 @@ impl LocalSettings {
             tui,
             history: config.history.clone().unwrap_or_default(),
             notices: config.notice.clone().unwrap_or_default(),
+            show_quota_warnings: crate::quota_warnings::enabled(codex_home.as_path()),
             custom_notification_filters: custom_notification_filters(&bootstrap.config_layer_stack),
             user_config_path: bootstrap
                 .config_layer_stack

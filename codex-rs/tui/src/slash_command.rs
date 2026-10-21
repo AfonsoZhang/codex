@@ -59,6 +59,7 @@ pub enum SlashCommand {
     #[strum(to_string = "pwd", serialize = "cwd")]
     Pwd,
     Usage,
+    QuotaWarning,
     DebugConfig,
     Title,
     Statusline,
@@ -122,6 +123,7 @@ impl SlashCommand {
             SlashCommand::Cd => "change the current working directory",
             SlashCommand::Pwd => "show the current working directory",
             SlashCommand::Usage => "view account usage or use a usage limit reset",
+            SlashCommand::QuotaWarning => "toggle quota warnings: /quota-warning [on|off|status]",
             SlashCommand::DebugConfig => "show config layers and requirement sources for debugging",
             SlashCommand::Title => "configure which items appear in the terminal title",
             SlashCommand::Statusline => "configure which items appear in the status line",
@@ -186,6 +188,7 @@ impl SlashCommand {
                 | SlashCommand::Cd
                 | SlashCommand::Pwd
                 | SlashCommand::Usage
+                | SlashCommand::QuotaWarning
                 | SlashCommand::Pets
                 | SlashCommand::Side
                 | SlashCommand::Btw
@@ -208,6 +211,7 @@ impl SlashCommand {
                 | SlashCommand::Warnings
                 | SlashCommand::Pwd
                 | SlashCommand::Usage
+                | SlashCommand::QuotaWarning
                 | SlashCommand::Ide
         )
     }
@@ -236,6 +240,7 @@ impl SlashCommand {
                 | SlashCommand::Rollout
                 | SlashCommand::Copy
                 | SlashCommand::Raw
+                | SlashCommand::QuotaWarning
         )
     }
 
@@ -281,6 +286,7 @@ impl SlashCommand {
             | SlashCommand::Warnings
             | SlashCommand::Pwd
             | SlashCommand::Usage
+            | SlashCommand::QuotaWarning
             | SlashCommand::DebugConfig
             | SlashCommand::Ps
             | SlashCommand::Stop
@@ -335,6 +341,18 @@ mod tests {
     #[test]
     fn stop_command_is_canonical_name() {
         assert_eq!(SlashCommand::Stop.command(), "stop");
+    }
+
+    #[test]
+    fn quota_warning_command_is_available_with_inline_arguments() {
+        assert_eq!(
+            SlashCommand::from_str("quota-warning"),
+            Ok(SlashCommand::QuotaWarning)
+        );
+        assert!(SlashCommand::QuotaWarning.supports_inline_args());
+        assert!(SlashCommand::QuotaWarning.available_during_task());
+        assert!(SlashCommand::QuotaWarning.available_in_side_conversation());
+        assert!(SlashCommand::QuotaWarning.available_when_thread_unavailable());
     }
 
     #[test]

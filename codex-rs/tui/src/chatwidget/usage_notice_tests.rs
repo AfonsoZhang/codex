@@ -26,6 +26,73 @@ fn notice_time() -> DateTime<Local> {
         .unwrap()
 }
 
+#[tokio::test]
+async fn quota_warning_toggle_hides_notices_and_history_but_keeps_usage_data() {
+    let (mut chat, _, mut events, _) = make_chatwidget_manual_with_sender().await;
+    chat.on_rate_limit_snapshot(Some(snapshot(/*used_percent*/ 80)));
+    assert!(chat.usage_notice(/*width*/ 100).is_some());
+    while events.try_recv().is_ok() {}
+
+    chat.set_quota_warnings_enabled(false);
+    chat.on_rate_limit_snapshot(Some(snapshot(/*used_percent*/ 92)));
+    assert_eq!(chat.usage_notice(/*width*/ 100), None);
+    assert!(!chat.rate_limit_snapshots_by_limit_id.is_empty());
+    assert_eq!(
+        chat.usage_notice_state.current().unwrap().0.used_percent,
+        92
+    );
+    assert!(matches!(
+        chat.rate_limit_switch_prompt,
+        super::super::rate_limits::RateLimitSwitchPromptState::Idle
+    ));
+    while let Ok(event) = events.try_recv() {
+        assert!(!matches!(event, AppEvent::InsertHistoryCell(_)));
+    }
+
+    chat.set_quota_warnings_enabled(true);
+    assert!(chat.usage_notice(/*width*/ 100).is_some());
+    chat.on_rate_limit_snapshot(Some(snapshot(/*used_percent*/ 96)));
+    let mut warned = false;
+    while let Ok(event) = events.try_recv() {
+        warned |= matches!(event, AppEvent::InsertHistoryCell(_));
+    }
+    assert!(warned);
+}
+
+#[tokio::test]
+async fn quota_warning_command_routes_toggle_on_off_and_read_only_status() {
+    use crate::slash_command::SlashCommand;
+
+    let (mut chat, _, mut events, mut ops) = make_chatwidget_manual_with_sender().await;
+    for (args, expected) in [
+        ("", Some(false)),
+        ("ON", Some(true)),
+        (" off ", Some(false)),
+        ("toggle", Some(true)),
+        ("status", None),
+        ("invalid", None),
+    ] {
+        if args.is_empty() {
+            chat.handle_slash_command_dispatch(SlashCommand::QuotaWarning);
+        } else {
+            chat.dispatch_command_with_args(SlashCommand::QuotaWarning, args.to_string(), vec![]);
+        }
+        let mut actual = None;
+        while let Ok(event) = events.try_recv() {
+            if let AppEvent::SetQuotaWarningsEnabled(enabled) = event {
+                assert_eq!(actual, None);
+                actual = Some(enabled);
+                chat.set_quota_warnings_enabled(enabled);
+            }
+        }
+        assert_eq!(actual, expected, "{args}");
+        assert!(
+            ops.try_recv().is_err(),
+            "local command must not submit a model turn"
+        );
+    }
+}
+
 #[test]
 fn notice_details_fit_without_truncating_the_warning() {
     let now = notice_time();

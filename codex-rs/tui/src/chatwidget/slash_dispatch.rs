@@ -544,6 +544,7 @@ impl ChatWidget {
             }
             SlashCommand::Daemon => self.app_event_tx.send(AppEvent::OpenDaemonMenu),
             SlashCommand::Warnings => self.app_event_tx.send(AppEvent::OpenWarnings),
+            SlashCommand::QuotaWarning => self.run_quota_warning_command(""),
             SlashCommand::Status => {
                 if self.should_prefetch_rate_limits() {
                     let request_id = self.next_status_refresh_request_id;
@@ -880,6 +881,7 @@ impl ChatWidget {
                 }
                 _ => self.add_error_message("Usage: /keymap [debug]".to_string()),
             },
+            SlashCommand::QuotaWarning => self.run_quota_warning_command(trimmed),
             SlashCommand::Raw => match trimmed.to_ascii_lowercase().as_str() {
                 "on" => {
                     self.set_raw_output_mode_and_notify(/*enabled*/ true);
@@ -1262,6 +1264,29 @@ impl ChatWidget {
         false
     }
 
+    fn run_quota_warning_command(&mut self, args: &str) {
+        let enabled = match args.trim().to_ascii_lowercase().as_str() {
+            "" | "toggle" => !self.quota_warnings_enabled(),
+            "on" => true,
+            "off" => false,
+            "status" => {
+                let state = if self.quota_warnings_enabled() {
+                    "on"
+                } else {
+                    "off"
+                };
+                self.add_info_message(format!("Quota warnings: {state}."), /*hint*/ None);
+                return;
+            }
+            _ => {
+                self.add_error_message("Usage: /quota-warning [on|off|status|toggle]".to_string());
+                return;
+            }
+        };
+        self.app_event_tx
+            .send(AppEvent::SetQuotaWarningsEnabled(enabled));
+    }
+
     fn queued_command_drain_result(&self, cmd: SlashCommand) -> QueueDrain {
         if self.is_user_turn_pending_or_running() || !self.bottom_pane.no_modal_or_popup_active() {
             return QueueDrain::Stop;
@@ -1272,6 +1297,7 @@ impl ChatWidget {
             | SlashCommand::Daemon
             | SlashCommand::Pwd
             | SlashCommand::Usage
+            | SlashCommand::QuotaWarning
             | SlashCommand::DebugConfig
             | SlashCommand::Ps
             | SlashCommand::Stop
